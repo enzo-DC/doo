@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,10 +17,13 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { colors, radius, spacing } from "@/src/theme/colors";
+import { storage } from "@/src/utils/storage";
 import {
   cancelScrollGuard,
   ensureNotificationPermission,
   getPermissionState,
+  LIMIT_OPTIONS,
+  LIMIT_STORAGE_KEY,
   scheduleScrollGuard,
   SCROLL_GUARD_MINUTES,
   sendTestNotification,
@@ -109,9 +113,13 @@ export default function Home() {
   const [guardVisible, setGuardVisible] = useState(false);
   const [guardOn, setGuardOn] = useState(false);
   const [canAskAgain, setCanAskAgain] = useState(true);
+  const [limit, setLimit] = useState(SCROLL_GUARD_MINUTES);
 
   useEffect(() => {
     getPermissionState().then((s) => setCanAskAgain(s.canAskAgain));
+    storage.getItem(LIMIT_STORAGE_KEY, SCROLL_GUARD_MINUTES).then((v) => {
+      if (typeof v === "number") setLimit(v);
+    });
   }, []);
 
   const onSelectContext = (btn: ContextButton) => {
@@ -122,12 +130,20 @@ export default function Home() {
     });
   };
 
+  const onPickLimit = async (value: number) => {
+    Haptics.selectionAsync();
+    setLimit(value);
+    await storage.setItem(LIMIT_STORAGE_KEY, value);
+    // If protection already active, reschedule with the new limit.
+    if (guardOn) await scheduleScrollGuard(value);
+  };
+
   const enableGuard = async () => {
     const granted = await ensureNotificationPermission();
     const state = await getPermissionState();
     setCanAskAgain(state.canAskAgain);
     if (!granted) return;
-    await scheduleScrollGuard(SCROLL_GUARD_MINUTES);
+    await scheduleScrollGuard(limit);
     setGuardOn(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
@@ -142,7 +158,7 @@ export default function Home() {
     const state = await getPermissionState();
     setCanAskAgain(state.canAskAgain);
     if (!granted) return;
-    await sendTestNotification();
+    await sendTestNotification(limit);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setGuardVisible(false);
   };
@@ -178,7 +194,12 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
       >
         {CONTEXT_BUTTONS.map((btn, i) => (
-          <Animated.View key={btn.key} entering={FadeInDown.delay(i * 70).springify()}>
+          <Animated.View
+            key={btn.key}
+            entering={
+              Platform.OS === "web" ? undefined : FadeInDown.delay(i * 70).springify()
+            }
+          >
             <TouchableOpacity
               activeOpacity={0.85}
               style={[styles.ctxButton, { backgroundColor: btn.bg }]}
@@ -206,9 +227,28 @@ export default function Home() {
             </View>
             <Text style={styles.guardTitle}>Protection anti-scroll</Text>
             <Text style={styles.guardText}>
-              Doo te prévient après {SCROLL_GUARD_MINUTES} minutes de scroll pour venir
+              Doo te prévient après {limit} minutes de scroll pour venir
               t&apos;amuser dans le vrai monde.
             </Text>
+
+            <Text style={styles.limitLabel}>Ma limite de temps</Text>
+            <View style={styles.chipRow}>
+              {LIMIT_OPTIONS.map((value) => {
+                const active = value === limit;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => onPickLimit(value)}
+                    testID={`limit-chip-${value}`}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {value} min
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {guardOn ? (
               <TouchableOpacity
@@ -224,9 +264,7 @@ export default function Home() {
                 onPress={enableGuard}
                 testID="enable-guard-button"
               >
-                <Text style={styles.guardBtnText}>
-                  Activer ({SCROLL_GUARD_MINUTES} min)
-                </Text>
+                <Text style={styles.guardBtnText}>Activer ({limit} min)</Text>
               </TouchableOpacity>
             )}
 
@@ -341,7 +379,44 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.textDark,
     textAlign: "center",
+    marginBottom: spacing.md,
+  },
+  limitLabel: {
+    alignSelf: "flex-start",
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.muted,
+    marginBottom: spacing.sm,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    justifyContent: "center",
     marginBottom: spacing.lg,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.offWhite,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  chipActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textDark,
+  },
+  chipTextActive: {
+    color: colors.textPlum,
+    fontWeight: "800",
   },
   guardBtn: {
     width: "100%",

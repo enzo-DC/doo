@@ -2,6 +2,7 @@ import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { Platform } from "react-native";
 import { useEffect, useRef } from "react";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
@@ -25,6 +26,7 @@ export default function RootLayout() {
 
   // Tapping the "20 min" reminder opens the app on the Home screen.
   useEffect(() => {
+    if (Platform.OS === "web") return;
     const goHome = () => router.replace("/");
 
     Notifications.getLastNotificationResponseAsync().then((response) => {

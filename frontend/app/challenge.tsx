@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -99,7 +100,7 @@ export default function Challenge() {
         ) : (
           <Animated.Text
             key={challenge}
-            entering={FadeIn.duration(350)}
+            entering={Platform.OS === "web" ? undefined : FadeIn.duration(350)}
             style={styles.challengeText}
             testID="challenge-text"
           >

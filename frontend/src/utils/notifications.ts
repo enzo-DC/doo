@@ -2,11 +2,14 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 export const SCROLL_GUARD_MINUTES = 20;
+export const LIMIT_OPTIONS = [5, 10, 15, 20, 30, 45, 60];
+export const LIMIT_STORAGE_KEY = "doo-scroll-limit";
 const GUARD_ID_KEY = "doo-scroll-guard";
 
 export const NOTIF_TITLE = "Doo";
-export const NOTIF_BODY =
-  "Sa fait 20 min que tu scroll, viens t'amuser un peu dans le vrai monde";
+export function buildNotifBody(minutes: number): string {
+  return `Sa fait ${minutes} min que tu scroll, viens t'amuser un peu dans le vrai monde`;
+}
 
 // Foreground presentation: show banner + play sound even when app is open.
 Notifications.setNotificationHandler({
@@ -54,7 +57,7 @@ export async function scheduleScrollGuard(
     identifier: GUARD_ID_KEY,
     content: {
       title: NOTIF_TITLE,
-      body: NOTIF_BODY,
+      body: buildNotifBody(minutes),
       data: { screen: "/" },
     },
     trigger: {
@@ -75,13 +78,15 @@ export async function cancelScrollGuard(): Promise<void> {
 }
 
 // Fires the exact reminder a couple seconds out so the flow can be demoed
-// without waiting 20 real minutes.
-export async function sendTestNotification(): Promise<void> {
+// without waiting for the real limit.
+export async function sendTestNotification(
+  minutes: number = SCROLL_GUARD_MINUTES,
+): Promise<void> {
   if (Platform.OS === "web") return;
   await Notifications.scheduleNotificationAsync({
     content: {
       title: NOTIF_TITLE,
-      body: NOTIF_BODY,
+      body: buildNotifBody(minutes),
       data: { screen: "/" },
     },
     trigger: {

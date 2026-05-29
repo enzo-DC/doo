@@ -68,7 +68,11 @@ export default function Answer() {
       >
         <View style={styles.body}>
           {done ? (
-            <Animated.View entering={FadeIn} style={styles.card} testID="answer-success-card">
+            <Animated.View
+              entering={Platform.OS === "web" ? undefined : FadeIn}
+              style={styles.card}
+              testID="answer-success-card"
+            >
               <View style={styles.successIcon}>
                 <Ionicons name="checkmark" size={34} color={colors.white} />
               </View>
